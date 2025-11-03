@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>明日方舟伤害计算器</title>
+<style>
+  :root{
+    --bg:#0f1221;
+    --card:#171a2b;
+    --muted:#8a90aa;
+    --text:#e7ecff;
+    --accent:#7aa2ff;
+    --accent-2:#7df0c4;
+    --danger:#ff6b6b;
+    --ok:#4cd964;
+    --border:#242942;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+                 "PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei","Arial", "Apple Color Emoji", "Segoe UI Emoji";
+    background: radial-gradient(1600px 800px at 80% -20%, #1a1f39 0, transparent 60%) , var(--bg);
+    color:var(--text);
+    letter-spacing:.2px;
+  }
+  .app{
+    max-width: 1080px;
+    margin: 40px auto;
+    padding: 0 18px 120px;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    margin-bottom: 18px;
+  }
+  header h1{
+    font-size: clamp(20px, 2.6vw, 30px);
+    margin: 0;
+    letter-spacing:.5px;
+    display:flex; align-items:center; gap:10px;
+  }
+  header h1 .badge{
+    font-size: 12px; font-weight:700; color:#0c1020;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    padding: 3px 8px; border-radius:999px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+  .card{
+    grid-column: span 12;
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00)), var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  @media (min-width: 900px){
+    .span-6{grid-column: span 6}
+    .span-4{grid-column: span 4}
+    .span-3{grid-column: span 3}
+  }
+  .subtle{color:var(--muted); font-size: 12px}
+  .inputs{
+    display:grid;
+    grid-template-columns: repeat(6,1fr);
+    gap:12px;
+  }
+  .inputs .field{
+    grid-column: span 6;
+    display:flex; flex-direction:column; gap:6px;
+    background: rgba(0,0,0,.16);
+    border:1px dashed rgba(255,255,255,.06);
+    border-radius: 12px;
+    padding:10px 12px;
+  }
+  @media (min-width: 880px){
+    .inputs .field.span-2{grid-column: span 2}
+    .inputs .field.span-3{grid-column: span 3}
+    .inputs .field.span-4{grid-column: span 4}
+  }
+  label{
+    font-size:13px; color:#b9c3ff; display:flex; align-items:center; gap:8px; font-weight:700;
+  }
+  input[type="number"], input[type="text"]{
+    width:100%; background:#0e1224; border:1px solid #283258; color:var(--text);
+    border-radius:10px; padding:10px 10px; font-size:14px; outline:none;
+    transition: border .15s ease, box-shadow .15s ease;
+  }
+  input[type="number"]:focus, input[type="text"]:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(122,162,255,.12);
+  }
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .row .pill{
+    background: #11162c; border:1px solid #2b3564; padding: 6px 10px; border-radius:999px; font-size:12px; color:#bcd1ff;
+  }
+  .toggle{
+    display:inline-flex; align-items:center; gap:8px; user-select:none; cursor:pointer;
+  }
+  .toggle input{appearance:none; width:32px; height:18px; border-radius:999px; position:relative; background:#2c3156; outline:none; transition:all .2s ease}
+  .toggle input:checked{background:linear-gradient(90deg, var(--accent), var(--accent-2))}
+  .toggle input::after{
+    content:""; position:absolute; left:2px; top:2px; width:14px; height:14px; border-radius:50%;
+    background:white; transform:translateX(0); transition:transform .2s ease; box-shadow:0 2px 6px rgba(0,0,0,.35);
+  }
+  .toggle input:checked::after{ transform:translateX(14px)}
+  .modes{display:flex; gap:8px; flex-wrap:wrap}
+  .modes .mode{
+    border:1px solid #2a2f59; border-radius:10px; padding:6px 10px; cursor:pointer; user-select:none;
+    background:#12152a; color:#c6d3ff; font-size:12px;
+  }
+  .modes .mode.active{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(122,162,255,.15); }
+  .results{
+    display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; margin-top:12px;
+  }
+  .stat{
+    grid-column: span 3;
+    background: linear-gradient(180deg, rgba(122,162,255,.08), rgba(122,162,255,0));
+    border:1px solid #2b3564; border-radius:12px; padding:10px 12px;
+  }
+  .stat h3{margin:4px 0 2px; font-size:22px}
+  .stat p{margin:0; color:var(--muted); font-size:12px}
+  @media (min-width: 880px){
+    .stat{ grid-column: span 2 }
+  }
+  .formula{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", "Noto Sans Mono";
+    background:#0d1122; border:1px solid #2b3564; border-radius:10px; padding:12px; white-space:pre-wrap; line-height:1.5; color:#cfe1ff
+  }
+  .btns{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
+  .btn{
+    background: linear-gradient(135deg, #263061, #1b2247);
+    border:1px solid #2c366c; color:#dbe5ff; padding:8px 12px; font-weight:700; border-radius:10px; cursor:pointer;
+    transition:transform .06s ease, box-shadow .2s ease;
+  }
+  .btn:active{ transform:scale(.98) }
+  .btn.primary{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#08131d; border-color: transparent; }
+  footer{margin-top:18px; color:#9cb0ff}
+  .small{font-size:12px; color:#a8b2d9}
+  .desc ul{margin:8px 0 0 18px}
+  .desc li{margin:6px 0}
+  .kvs{display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:8px}
+  .kvs .kv{background:#0e1224; padding:10px; border:1px solid #283258; border-radius:10px; font-size:13px}
+  .muted{color:#a5abd0}
+  .right{margin-left:auto}
+  .hr{height:1px; background:linear-gradient(90deg, transparent, #2c366c, transparent); margin:12px 0}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>明日方舟伤害计算器 <span class="badge">V2</span></h1>
+    <div class="row">
+      <span class="pill">小数位数 <input id="precision" type="number" value="2" min="0" max="6" style="width:64px; margin-left:6px"></span>
+      <label class="toggle"><input id="clampZero" type="checkbox" checked><span>伤害不为负</span></label>
+      <button class="btn" id="shareBtn">复制配置链接</button>
+      <button class="btn" id="resetBtn">重置</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card span-6">
+      <h2>基础与倍率</h2>
+      <div class="inputs">
+        <div class="field span-3">
+          <label>基础面板</label>
+          <input id="c2" type="number" step="1" value="1000" placeholder="例如 1000">
+          <span class="subtle">干员局外面板攻击力（点）。</span>
+        </div>
+        <div class="field span-3">
+          <label>直接乘算倍率</label>
+          <input id="c4" type="text" value="0" placeholder="30 或 30% 或 0.3">
+          <span class="subtle">如“攻击力+X% / 提升自身攻击力X%” 等。此类作为乘算区参与计算：×(1+值)。</span>
+        </div>
+        <div class="field span-3">
+          <label>直接加算倍率</label>
+          <input id="c3" type="text" value="0" placeholder="30 / 30% / 0.3 或 150点">
+          <span class="subtle">绝大多数加减固定数值的技能与天赋所在区。同类先加到一起，再以 ×(1+值) 参与；也可直接填“150点/-50点”，会按基础面板自动换算为倍率。</span>
+        </div>
+        <div class="field span-3">
+          <label>最终加算</label>
+          <input id="c5" type="number" step="1" value="0" placeholder="例如 120">
+          <span class="subtle">在乘区之后追加的固定攻击力（点），如部分干员的特定效果。</span>
+        </div>
+        <div class="field span-3">
+          <label>攻击力倍率</label>
+          <input id="c6" type="text" value="100%" placeholder="例如 200 或 200% 或 2">
+          <span class="subtle">如“攻击力提升至X% / 等效攻击力X% / 造成X%伤害 / 某些职业分支倍率”。</span>
+        </div>
+        <div class="field span-3">
+          <label>伤害倍率</label>
+          <input id="c7" type="text" value="100%" placeholder="例如 120 或 120% 或 1.2">
+          <span class="subtle">“伤害提高X% / 造成X%伤害”等最终伤乘区。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card span-6">
+      <h2>敌方参数</h2>
+      <div class="inputs">
+        <div class="field span-3">
+          <label>敌人防御</label>
+          <input id="c8" type="number" step="1" value="0" placeholder="例如 800">
+          <span class="subtle">目标当前防御（点）。</span>
+        </div>
+        <div class="field span-3">
+          <label>减防比例</label>
+          <input id="c9" type="text" value="0" placeholder="30 或 30% 或 0.3">
+          <span class="subtle">按 DEF × (1 − 值) 应用。</span>
+        </div>
+        <div class="field span-3">
+          <label>敌人减伤</label>
+          <input id="c10" type="text" value="0" placeholder="20 或 20% 或 0.2">
+          <span class="subtle">对最终伤害的减免比例，最终以 ×(1 − 值) 生效。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card span-6">
+      <h2>节奏与命中</h2>
+      <div class="inputs">
+        <div class="field span-2">
+          <label>攻击间隔 (秒)</label>
+          <input id="atkInterval" type="number" step="0.01" value="1">
+          <span class="subtle">每隔多少秒出手一次。</span>
+        </div>
+        <div class="field span-2">
+          <label>技能持续时间 (秒)</label>
+          <input id="skillDuration" type="number" step="0.1" value="10">
+          <span class="subtle">统计窗口时长。为 0 时不计算窗口汇总。</span>
+        </div>
+        <div class="field span-2">
+          <label>每次命中数</label>
+          <input id="hitsPerAttack" type="number" step="1" value="1" min="1">
+          <span class="subtle">一次出手命中了几段。</span>
+        </div>
+        <div class="field span-3">
+          <label>计数模式</label>
+          <div class="modes">
+            <div class="mode active" data-mode="expected">期望值（连续）</div>
+            <div class="mode" data-mode="integer">取整（完整次）</div>
+          </div>
+          <span class="subtle">默认更平滑的期望值。</span>
+        </div>
+        <div class="field span-3">
+          <label>显示</label>
+          <div class="row">
+            <label class="toggle"><input id="showSteps" type="checkbox"><span>展开详细过程</span></label>
+            <label class="toggle"><input id="useThousands" type="checkbox" checked><span>千分位分隔</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card span-6">
+      <h2>结果</h2>
+      <div class="results" id="results">
+        <div class="stat">
+          <p>单次命中伤害（DPH）</p>
+          <h3 id="outDPH">-</h3>
+        </div>
+        <div class="stat">
+          <p>每次攻击伤害（DPA = DPH × 命中数）</p>
+          <h3 id="outDPA">-</h3>
+        </div>
+        <div class="stat">
+          <p>持续DPS（按攻击间隔，DPA/间隔）</p>
+          <h3 id="outSustainedDPS">-</h3>
+        </div>
+        <div class="stat">
+          <p>窗口总命中次数（由模式决定）</p>
+          <h3 id="outHits">-</h3>
+        </div>
+        <div class="stat">
+          <p>窗口总伤害（Total Damage）</p>
+          <h3 id="outTotal">-</h3>
+        </div>
+        <div class="stat">
+          <p>窗口平均DPS（Total/持续时间）</p>
+          <h3 id="outWindowDPS">-</h3>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div id="steps" class="formula" style="display:none"></div>
+      <div class="btns">
+        <button class="btn primary" id="recalcBtn">立即计算</button>
+        <button class="btn" id="saveBtn">保存到本地</button>
+        <button class="btn" id="loadBtn">从本地恢复</button>
+        <button class="btn" id="copyBtn">复制计算明细</button>
+      </div>
+    </section>
+
+    <section class="card span-12 desc">
+      <h2>字段说明</h2>
+      <div class="kvs">
+        <div class="kv"><b>基础面板</b><br><span class="muted">干员局外面板攻击力（点）。</span></div>
+        <div class="kv"><b>直接乘算倍率</b><br><span class="muted">“攻击力+X% / 提升自身攻击力X%” 等，按乘算区处理，与其它乘区相乘。填法：<code>30</code>、<code>30%</code> 或 <code>0.3</code>。</span></div>
+        <div class="kv"><b>直接加算倍率</b><br><span class="muted">绝大多数“加减固定数值”的技能与天赋所在区。可直接填百分比（<code>30</code>/<code>30%</code>/<code>0.3</code>）；也可填固定点数（如 <code>150点</code>、<code>-50点</code>），程序会按“基础面板”自动换算成倍率后参与计算。</span></div>
+        <div class="kv"><b>最终加算</b><br><span class="muted">在乘区之后直接追加的固定攻击力（点）。</span></div>
+        <div class="kv"><b>攻击力倍率</b><br><span class="muted">“攻击力提升至X% / 等效攻击力X% / 造成X%伤害 / 某些职业分支倍率”。填法同上。</span></div>
+        <div class="kv"><b>伤害倍率</b><br><span class="muted">“伤害提高X% / 造成X%伤害”等最终伤乘区。填法同上。</span></div>
+        <div class="kv"><b>敌人防御</b><br><span class="muted">目标当前防御（点）。</span></div>
+        <div class="kv"><b>减防比例</b><br><span class="muted">按 DEF×(1−值) 生效。填法同上。</span></div>
+        <div class="kv"><b>敌人减伤</b><br><span class="muted">目标对最终伤害的减免比例，最终以 ×(1−值) 生效。填法同上。</span></div>
+        <div class="kv"><b>节奏参数</b><br><span class="muted">攻击间隔=出手周期；技能持续时间=统计窗口；每次命中数=多段、分裂等的段数。计数模式可选“期望值（连续）/取整（完整次）”。</span></div>
+      </div>
+      <p class="small">百分比输入规则：可写 <code>30</code>、<code>30%</code> 或 <code>0.3</code>。不带 <code>%</code> 时，若绝对值 ≥ 2 视为百分数（再除以 100），否则按小数原值处理。</p>
+    </section>
+  </div>
+
+  <footer class="small">
+    © Arknights Calculator UI – 原生前端，无需安装，支持本地保存。
+  </footer>
+</div>
+
+<script>
+(function(){
+  const $ = (sel)=>document.querySelector(sel);
+  const $$ = (sel)=>document.querySelectorAll(sel);
+  const fmt = (v, prec=2, thousand=true)=>{
+    if (!isFinite(v)) return "-";
+    const n = Number(v);
+    const s = n.toFixed(prec);
+    if(!thousand) return s;
+    const parts = s.split(".");
+    parts[0] = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");
+    return parts.join(".");
+  };
+  const readNum = (id)=>{
+    const el = document.getElementById(id);
+    let s = (el.value||"").toString().trim();
+    if (s === "") return 0;
+    s = s.replace(/，/g, ",").replace(/\\s+/g,"");
+    s = s.replace(/_/g, "");
+    s = s.replace(/,/g, "");
+    const v = parseFloat(s);
+    return isNaN(v) ? 0 : v;
+  };
+  const readPct = (id)=>{
+    const el = document.getElementById(id);
+    let s = (el.value||"").toString().trim();
+    if (s === "") return 0;
+    if (/%$/.test(s)){
+      const v = parseFloat(s.replace(/%/,""));
+      return isNaN(v) ? 0 : v/100;
+    }
+    s = s.replace(/，/g, ",").replace(/\\s+/g,"").replace(/_/g,"").replace(/,/g,"");
+    let v = parseFloat(s);
+    if (isNaN(v)) return 0;
+    if (Math.abs(v) >= 2) return v/100;
+    return v;
+  };
+  // 专门处理“直接加算倍率”输入：既可百分比，也可“150点/-50点”
+  const readDirectAddRatio = (id, base)=>{
+    const el = document.getElementById(id);
+    let raw = (el.value||"").toString().trim();
+    if (raw === "") return {ratio:0, fromPoints:false, pts:0, raw:""};
+    // 检测“点/pt/pts”
+    const hasPointsMark = /点$|点\\s*$|pt$|pts$/i.test(raw);
+    if (hasPointsMark){
+      // 提取数字部分（允许负号）
+      const num = parseFloat(raw.replace(/[^0-9+\\-\\.]/g,""));
+      const pts = isNaN(num) ? 0 : num;
+      const ratio = (base>0) ? (pts / base) : 0;
+      return {ratio, fromPoints:true, pts, raw};
+    }
+    // 否则按百分比解析
+    const ratio = readPct(id);
+    return {ratio, fromPoints:false, pts:0, raw};
+  };
+
+  const saveToLocal = ()=>{
+    const ids = ["c2","c3","c4","c5","c6","c7","c8","c9","c10","atkInterval","skillDuration","hitsPerAttack","precision","clampZero","useThousands"];
+    const obj = {};
+    ids.forEach(id=>{
+      const el = document.getElementById(id);
+      obj[id] = (el.type === "checkbox") ? el.checked : el.value;
+    });
+    obj["mode"] = document.querySelector(".mode.active")?.dataset.mode || "expected";
+    localStorage.setItem("ak_calc_v2", JSON.stringify(obj));
+    toast("已保存到本地存储");
+  };
+  const loadFromLocal = ()=>{
+    const raw = localStorage.getItem("ak_calc_v2");
+    if (!raw){ toast("未找到已保存的数据"); return; }
+    try{
+      const obj = JSON.parse(raw);
+      Object.entries(obj).forEach(([k,v])=>{
+        if (k === "mode"){
+          $$(".mode").forEach(m=>m.classList.toggle("active", m.dataset.mode===v));
+        }else{
+          const el = document.getElementById(k);
+          if (!el) return;
+          if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+        }
+      });
+      calc();
+      toast("已从本地存储恢复");
+    }catch(e){ toast("读取失败"); }
+  };
+  const setMode = (m)=>{
+    $$(".mode").forEach(x=>x.classList.toggle("active", x.dataset.mode===m));
+    calc();
+  };
+  const getMode = ()=> document.querySelector(".mode.active")?.dataset.mode || "expected";
+  const clampZeroEl = $("#clampZero");
+  const precisionEl = $("#precision");
+  const useThousandsEl = $("#useThousands");
+
+  function composeStep(ctx){
+    const {base,addRatio,addFromPts,addPts,mulRatio,finalAdd,atkMul,dmgMul,def,defDown,enemyDR, DPH, DPA, hitsTotal, sustainedDPS, total, windowDPS} = ctx;
+    const prec = Math.max(0, Math.min(6, parseInt(precisionEl.value||"2")));
+    const th = useThousandsEl.checked;
+    const s = [];
+    s.push("单次命中伤害（DPH） = ((基础面板 × (1+直接加算倍率) × (1+直接乘算倍率) + 最终加算) × 攻击力倍率 − 敌人防御 × (1−减防比例)) × 伤害倍率 × (1−敌人减伤)");
+    s.push("  = ((" + fmt(base,prec,th) + " × (1+" + fmt(addRatio,4,false) + ") × (1+" + fmt(mulRatio,4,false) + ") + " + fmt(finalAdd,prec,th) + ") × " + fmt(atkMul,4,false) + " − " + fmt(def,prec,th) + " × (1−" + fmt(defDown,4,false) + ")) × " + fmt(dmgMul,4,false) + " × (1−" + fmt(enemyDR,4,false) + ")");
+    s.push("  = " + fmt(DPH, prec, th));
+    if (addFromPts){
+      s.push("");
+      s.push("其中：直接加算倍率来自固定点数输入 → 等效倍率 = 固定点数 / 基础面板 = " + fmt(addPts, 4, false) + " / " + fmt(base, 4, false) + " = " + fmt(addRatio, 6, false));
+    }
+    s.push("");
+    s.push("每次攻击伤害（DPA）= DPH × 每次命中数");
+    s.push("  = " + fmt(DPH, prec, th) + " × " + fmt(readNum('hitsPerAttack'), 0, false) + " = " + fmt(DPA, prec, th));
+    s.push("");
+    const interval = readNum('atkInterval');
+    const dur = readNum('skillDuration');
+    const mode = getMode();
+    if (dur > 0 && interval > 0){
+      if (mode === "expected"){
+        s.push("窗口总命中次数（期望值模式）= (持续时间 / 间隔) × 每次命中数");
+        s.push("  = (" + fmt(dur,2,false) + " / " + fmt(interval,2,false) + ") × " + fmt(readNum('hitsPerAttack'),0,false) + " = " + fmt(hitsTotal,2,false));
+      }else{
+        s.push("窗口总命中次数（取整模式）= ⌊持续时间 / 间隔⌋ × 每次命中数");
+        const whole = Math.floor(dur/interval);
+        s.push("  = ⌊" + fmt(dur,2,false) + " / " + fmt(interval,2,false) + "⌋ × " + fmt(readNum('hitsPerAttack'),0,false) + " = " + fmt(whole*readNum('hitsPerAttack'),0,false));
+      }
+      s.push("");
+      s.push("窗口总伤害 = DPH × 总命中次数 = " + fmt(DPH, prec, th) + " × " + fmt(hitsTotal, 2, false) + " = " + fmt(total, prec, th));
+      s.push("窗口平均DPS = 总伤害 / 持续时间 = " + fmt(total, prec, th) + " / " + fmt(dur, 2, false) + " = " + fmt(windowDPS, prec, th));
+    }
+    if (interval > 0){
+      s.push("");
+      s.push("持续DPS（按攻击间隔）= DPA / 间隔 = " + fmt(DPA, prec, th) + " / " + fmt(interval, 2, false) + " = " + fmt(sustainedDPS, prec, th));
+    }
+    if ($("#clampZero").checked) s.push("\\n（已启用“伤害不为负”防护）");
+    return s.join("\\n");
+  }
+
+  function calc(){
+    const base = readNum('c2');
+    // 直接加算倍率：支持百分比或“X点”
+    const addPack = readDirectAddRatio('c3', base);
+    const addRatio = addPack.ratio;
+    // 直接乘算倍率：纯百分比/小数
+    const mulRatio = readPct('c4');
+    const finalAdd = readNum('c5');
+    const atkMul = readPct('c6') || 0;
+    const dmgMul = readPct('c7') || 0;
+    const def = readNum('c8');
+    const defDown = readPct('c9');
+    const enemyDR = readPct('c10');
+
+    const hitsPerAttack = Math.max(0, readNum('hitsPerAttack'));
+    const atkInterval = Math.max(0, readNum('atkInterval'));
+    const skillDuration = Math.max(0, readNum('skillDuration'));
+    const clamp = $("#clampZero").checked;
+
+    // ((base*(1+add)*(1+mul)+finalAdd)*atkMul - def*(1-defDown))*dmgMul*(1-enemyDR)
+    let DPH = ((base * (1 + addRatio) * (1 + mulRatio) + finalAdd) * atkMul - def * (1 - defDown)) * dmgMul * (1 - enemyDR);
+    if (clamp) DPH = Math.max(0, DPH);
+
+    const DPA = DPH * hitsPerAttack;
+    let attacks = 0;
+    if (atkInterval > 0){
+      if (getMode() === "integer") attacks = Math.floor(skillDuration / atkInterval);
+      else attacks = skillDuration / atkInterval;
+    }
+    let hitsTotal = attacks * hitsPerAttack;
+    const total = DPH * hitsTotal;
+    const sustainedDPS = (atkInterval > 0) ? (DPA / atkInterval) : 0;
+    const windowDPS = (skillDuration > 0) ? (total / skillDuration) : 0;
+
+    const prec = Math.max(0, Math.min(6, parseInt(precisionEl.value||"2")));
+    const thousand = useThousandsEl.checked;
+    $("#outDPH").textContent = fmt(DPH, prec, thousand);
+    $("#outDPA").textContent = fmt(DPA, prec, thousand);
+    $("#outSustainedDPS").textContent = fmt(sustainedDPS, prec, thousand);
+    $("#outHits").textContent = isFinite(hitsTotal) ? fmt(hitsTotal, 2, false) : "-";
+    $("#outTotal").textContent = fmt(total, prec, thousand);
+    $("#outWindowDPS").textContent = fmt(windowDPS, prec, thousand);
+
+    if ($("#showSteps").checked){
+      $("#steps").style.display = "";
+      $("#steps").textContent = composeStep({
+        base,
+        addRatio, addFromPts: addPack.fromPoints, addPts: addPack.pts,
+        mulRatio, finalAdd, atkMul, dmgMul, def, defDown, enemyDR,
+        DPH, DPA, hitsTotal, sustainedDPS, total, windowDPS
+      });
+    }else{
+      $("#steps").style.display = "none";
+    }
+  }
+
+  function serializeToQuery(){
+    const ids = ["c2","c3","c4","c5","c6","c7","c8","c9","c10","atkInterval","skillDuration","hitsPerAttack","precision"];
+    const obj = {};
+    ids.forEach(id=>obj[id] = document.getElementById(id).value);
+    obj["clampZero"] = $("#clampZero").checked ? 1 : 0;
+    obj["useThousands"] = $("#useThousands").checked ? 1 : 0;
+    obj["mode"] = getMode();
+    const q = new URLSearchParams(obj).toString();
+    return location.origin + location.pathname + "#" + q;
+  }
+  function applyFromQuery(){
+    if (!location.hash) return;
+    const q = new URLSearchParams(location.hash.slice(1));
+    q.forEach((v,k)=>{
+      if (k === "mode"){
+        setMode(v);
+      }else if (k === "clampZero" || k === "useThousands"){
+        const el = document.getElementById(k);
+        if (el) el.checked = v === "1";
+      }else{
+        const el = document.getElementById(k);
+        if (el) el.value = v;
+      }
+    });
+  }
+
+  function toast(msg){
+    const t = document.createElement("div");
+    t.textContent = msg;
+    t.style.position="fixed"; t.style.zIndex=99; t.style.left="50%"; t.style.top="18px"; t.style.transform="translateX(-50%)";
+    t.style.background="linear-gradient(135deg, #242c59, #1b214a)"; t.style.border="1px solid #2c366c"; t.style.color="#dbe5ff";
+    t.style.padding="10px 14px"; t.style.borderRadius="10px"; t.style.boxShadow="var(--shadow)";
+    document.body.appendChild(t);
+    setTimeout(()=>{t.style.transition="opacity .4s ease"; t.style.opacity="0"; setTimeout(()=>t.remove(), 400)}, 1200);
+  }
+
+  // wiring
+  $$("#recalcBtn, input").forEach(el=> el.addEventListener("input", calc, {passive:true}));
+  $("#recalcBtn").addEventListener("click", calc);
+  $("#saveBtn").addEventListener("click", saveToLocal);
+  $("#loadBtn").addEventListener("click", loadFromLocal);
+  $("#copyBtn").addEventListener("click", ()=>{
+    const text = $("#steps").style.display === "none" ? "（请先勾选“展开详细过程”）" : $("#steps").textContent;
+    navigator.clipboard.writeText(text).then(()=>toast("已复制计算明细")).catch(()=>toast("复制失败"));
+  });
+  $("#shareBtn").addEventListener("click", ()=>{
+    const link = serializeToQuery();
+    navigator.clipboard.writeText(link).then(()=>toast("已复制配置链接")).catch(()=>toast("复制失败"));
+  });
+  $("#resetBtn").addEventListener("click", ()=>{
+    document.querySelectorAll("input").forEach(el=>{
+      if (el.id === "precision") el.value = 2;
+      else if (el.id === "clampZero" || el.id === "useThousands") el.checked = true;
+      else if (el.id === "c2") el.value = 1000;
+      else if (el.id === "c6" || el.id === "c7") el.value = "100%";
+      else if (el.id === "atkInterval") el.value = 1;
+      else if (el.id === "skillDuration") el.value = 10;
+      else if (el.id === "hitsPerAttack") el.value = 1;
+      else el.value = 0;
+    });
+    $$(".mode").forEach(m=>m.classList.toggle("active", m.dataset.mode==="expected"));
+    setMode("expected");
+    calc();
+  });
+  $$(".mode").forEach(m=> m.addEventListener("click", ()=> setMode(m.dataset.mode)));
+
+  // init
+  applyFromQuery();
+  calc();
+  window.addEventListener("hashchange", ()=>{ applyFromQuery(); calc(); }, {passive:true});
+})();
+</script>
+</body>
+</html>
